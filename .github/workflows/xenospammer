@@ -1,0 +1,168 @@
+-- LocalScript → StarterPlayerScripts
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+-- Cache RemoteEvents
+local Events = ReplicatedStorage:WaitForChild("Events", 10)
+if not Events then warn("Events folder missing") return end
+
+local Spin           = Events:WaitForChild("Spin", 10)
+local LogSpinEvent   = Events:WaitForChild("LogSpinEvent", 10)
+local RedeemSpinReward = Events:WaitForChild("RedeemSpinReward", 10)
+
+if not (Spin and LogSpinEvent and RedeemSpinReward) then
+    warn("One or more RemoteEvents missing")
+    return
+end
+
+-- GUI Setup
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "XenoSpinGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main Frame (draggable)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 160)
+frame.Position = UDim2.new(0, 100, 0, 100)
+frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- BLACK background
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 16)
+frameCorner.Parent = frame
+
+-- White Shadow (elevated look)
+local shadow = Instance.new("Frame")
+shadow.Size = UDim2.new(1, 6, 1, 6)
+shadow.Position = UDim2.new(0, -3, 0, -3)
+shadow.BackgroundColor3 = Color3.new(1, 1, 1)
+shadow.BackgroundTransparency = 0.85
+shadow.ZIndex = 0
+shadow.Parent = frame
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 16)
+shadowCorner.Parent = shadow
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 36)
+title.Position = UDim2.new(0, 0, 0, 12)
+title.BackgroundTransparency = 1
+title.Text = "XENO SPAMMER"
+title.TextColor3 = Color3.new(1, 1, 1)  -- WHITE text
+title.TextSize = 20
+title.Font = Enum.Font.GothamBlack
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = frame
+
+-- Credit
+local credit = Instance.new("TextLabel")
+credit.Size = UDim2.new(1, 0, 0, 22)
+credit.Position = UDim2.new(0, 0, 0, 42)
+credit.BackgroundTransparency = 1
+credit.Text = "xenoscripts.com"
+credit.TextColor3 = Color3.fromRGB(200, 200, 200)
+credit.TextSize = 14
+credit.Font = Enum.Font.SourceSans
+credit.TextXAlignment = Enum.TextXAlignment.Center
+credit.Parent = frame
+
+-- Spam Button (White background, Black text)
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 220, 0, 60)
+button.Position = UDim2.new(0.5, -110, 0.5, 15)
+button.BackgroundColor3 = Color3.new(1, 1, 1)  -- WHITE button
+button.Text = "SPAM SPAM"
+button.TextColor3 = Color3.new(0, 0, 0)  -- BLACK text
+button.TextSize = 24
+button.Font = Enum.Font.GothamBold
+button.BorderSizePixel = 0
+button.Parent = frame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 14)
+btnCorner.Parent = button
+
+-- GLOW EFFECT (White border on hover)
+local glow = Instance.new("UIStroke")
+glow.Thickness = 3
+glow.Color = Color3.new(1, 1, 1)  -- WHITE glow
+glow.Transparency = 1
+glow.Parent = button
+
+button.MouseEnter:Connect(function()
+    button:TweenSize(UDim2.new(0, 230, 0, 65), "Out", "Quad", 0.2, true)
+    glow.Transparency = 0  -- Glow ON
+end)
+button.MouseLeave:Connect(function()
+    button:TweenSize(UDim2.new(0, 220, 0, 60), "Out", "Quad", 0.2, true)
+    glow.Transparency = 1  -- Glow OFF
+end)
+
+-- Dragging
+local dragging = false
+local dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Spam Toggle
+local spamming = false
+button.MouseButton1Click:Connect(function()
+    if spamming then
+        spamming = false
+        button.Text = "SPAM SPAM"
+        button.BackgroundColor3 = Color3.new(1, 1, 1)
+        return
+    end
+
+    spamming = true
+    button.Text = "STOP SPAM"
+    button.BackgroundColor3 = Color3.fromRGB(255, 100, 100)  -- Light red when active
+
+    coroutine.wrap(function()
+        while spamming do
+            Spin:InvokeServer()
+            LogSpinEvent:FireServer("paid", 1000)
+            LogSpinEvent:FireServer("reward", 500)
+            RedeemSpinReward:FireServer()
+        end
+    end)()
+end)
+
+-- Press E to toggle
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        button:Activate()
+    end
+end)
